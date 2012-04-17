@@ -11,73 +11,72 @@
 
 # Author: David Ryder
 
-#set -e
-HOME=/home/dryder/source/callengine/trunk
-NAME=calleng-main
+
+# HOME is the location of your adhearsion project
+HOME=/var/www/vhosts/callengine.logmycalls.com
+NAME=callengine
 DESC="Callengine main"
-USER=dryder
+USER=root
 GROUP=$USER
 
+RUBY_PATH=/usr/local/rvm/bin/rvm-shell
+GEMSET=1.9.2@callengine
+
+
 # This is the path to your gemset - I'd like a better way to retrieve this value
-export GEM_HOME=/home/dryder/.rvm/gems/ruby-1.8.7-p352@callengine
+export GEM_HOME=/usr/local/rvm/gems/ruby-1.9.2-p290@callengine
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:$GEM_HOME/bin
-PIDFILE=/var/run/$NAME.pid
+PIDFILE=$HOME/adhearsion.pid
 SCRIPTNAME=/etc/init.d/$NAME
-
-# Read configuration variable file if it is present - for future use
-[ -r /etc/default/$NAME ] && . /etc/default/$NAME
-
-# Load the VERBOSE setting and other rcS variables
-. /lib/init/vars.sh
-
-# Define LSB log_* functions.
-# Depend on lsb-base (>= 3.0-6) to ensure that this file is present.
-. /lib/lsb/init-functions
 
 #
 #	Function that starts the daemon/service.
 #
 d_start() {
-	if ! start-stop-daemon --start --background --pidfile $PIDFILE \
-			--chdir $HOME --make-pidfile --user $USER \
-			--exec $GEM_HOME/bin/ahn -- start $HOME; then
+	if ! start-stop-daemon --start --pidfile $PIDFILE \
+                        --startas $RUBY_PATH --user $USER \
+                        -- "$GEMSET" -c 'ahnctl start $HOME'; then
 		echo " failed."
 		exit 1
 	fi
+
 }
 
 #
 #	Function that stops the daemon/service.
 #
 d_stop() {
-	if start-stop-daemon --stop --quiet --pidfile $PIDFILE --name ahn --retry 3 == 0; then
+	if start-stop-daemon --stop --quiet --pidfile $PIDFILE --retry 3 == 0; then
 		rm -f $PIDFILE
 	else
-		echo " failed."
+		rm -f $PIDFILE
+		echo " not running."
 		exit 1
 	fi
 }
 
 case "$1" in
   start)
-	echo -n "Starting $NAME..."
 	if [ -f $PIDFILE ]; then
 		echo " failed (already running)."
 		exit 1
 	else
 		d_start
-		echo " done."
+		echo " ... done."
 	fi
 	;;
   stop)
 	echo -n "Stopping $NAME..."
 	if [ -f $PIDFILE ]; then
 		d_stop
-		echo " done."
+		echo " ... done."
 	else
-		echo " failed (not running)."
-		exit 1
+		if [ -f $PIDFILE]; then
+		  rm $PIDFILE
+		fi
+		echo " ... not running."
+		
 	fi
 	;;
   restart|force-reload)
